@@ -115,9 +115,9 @@ CancerCell <- SetAllIdent(object = CancerCell, id = "singler2sub")
 ##############################
 apply(singlerDF,2,function(x) length(unique(x)))
 
-singlerDF = AddMetaColor(object = CancerCell, colors = singler_colors1[1:16], 
+CancerCell = AddMetaColor(object = CancerCell, colors = singler_colors1[1:16], 
                          label = "singler2sub")
-CancerCell <- AddMetaData(object = CancerCell, metadata = singlerDF)
+
 
 ##############################
 # draw tsne plot
