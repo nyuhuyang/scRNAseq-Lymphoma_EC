@@ -9,19 +9,19 @@ source("../R/SingleR_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 #====== 3.1 Create Singler Object  ==========================================
-(load(file = "./data/Lymphoma_EC_11_20181231.Rda"))
-object@scale.data = NULL
-GC();GC();GC();GC();GC();GC();GC();GC();GC();
-singler = CreateSinglerObject(object@data, annot = NULL, project.name="3119_EC",
+(load(file = "./data/Lymphoma_EC_11_20181230.Rda"))
+GC();GC();GC();GC();GC();GC();GC();GC();GC();GC();
+singler = CreateSinglerObject(as.matrix(object@assays$RNA@data), annot = NULL,project.name = "3119_EC", 
                               min.genes = 500,technology = "10X", species = "Human", citation = "",
                               normalize.gene.length = F, variable.genes = "de",
                               fine.tune = F, do.signatures = F, clusters = NULL)
+
 # singler didn't find all cell labels
-length(singler$singler[[1]]$SingleR.single$labels) == ncol(CancerCell@data)
+length(singler$singler[[1]]$SingleR.single$labels) == ncol(object@assays$RNA@data)
 singler$meta.data$orig.ident = CancerCell@meta.data$orig.ident # the original identities, if not supplied in 'annot'
 singler$meta.data$xy = CancerCell@dr$tsne@cell.embeddings # the tSNE coordinates
 singler$meta.data$clusters = CancerCell@ident # the Seurat clusters (if 'clusters' not provided)
-save(singler,file="./output/singler_CancerCell_20181024.RData")
+save(singler,file="./output/singler_Lymphoma_EC_11_20181230.Rda")
 #====== 3.2 SingleR specifications ==========================================
 # Step 1: Spearman coefficient
 lnames = load(file = "./output/singler_CancerCell_20181024.RData")
