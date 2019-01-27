@@ -30,10 +30,39 @@ length(singler_colors1);length(singler_colors2)
 
 merge.ident <- gsub("TALL-plus-EC-2","TALL-plus-EC",CancerCell@meta.data$orig.ident)
 merge.identDF = data.frame("merge.ident" = merge.ident,
-                           row.names = rownames(singler$singler[[1]]$SingleR.single$labels))
+                           row.names = rownames(CancerCell@meta.data))
 CancerCell <- AddMetaData(object = CancerCell, metadata = merge.identDF)
 
 
+markers  <- HumanGenes(CancerCell,c("CD59","IGFBP7","IGF2R","HMGB1"))
+df <- data.frame("gene" = c("IGF2R"),
+                 "alias" = c("CD222","CD59"))
+SplitSingleFeaturePlot(CancerCell,group.by = "ident",split.by = "merge.ident",
+                       no.legend = T, alias = Alias(df = df, gene = markers),
+                       label.size=3,do.print =T,markers = markers,
+                       threshold = NULL,ncol=2)
+# grouped bar chart
+# create a dataset
+EC <- SubsetData(CancerCell, ident.use = c("Endothelial cells","mv Endothelial cells"))
+EC <- SetAllIdent(EC, id = "orig.ident")
+
+UMI.1 <- Matrix::rowMeans(x = EC@raw.data[, WhichCells(object = EC,ident = "EC-only")])
+UMI.2 <- Matrix::rowMeans(x = EC@raw.data[, WhichCells(object = EC,ident = c("TALL-plus-EC-2",
+                                                                             "TALL-plus-EC"))])
+sample=c(rep("EC-only" , 4) , rep("TALL-plus_EC" , 4) )
+genes=rep(markers , 2)
+value=c(UMI.1[markers],UMI.2[markers])
+data=data.frame(sample,genes,value)
+
+# Grouped
+jpeg(paste0(path,"/EC_group_barchart.jpeg"), units="in", width=10, height=7,res=600)
+ggplot(data, aes(fill=genes, y=value, x=sample)) + 
+        geom_bar(position="dodge", stat="identity")+
+        ylab("UMI")
+dev.off()
+
+
+# Counts.Barplot
 Counts.Barplot <- function(labels, samples, file.name, mar = c(5, 4, 4, 12), 
                            main="Total numbers of cell types in each sample",
                            col = singler.colors, args.legend = NULL){
@@ -340,4 +369,46 @@ table(CancerCell@ident)
 jpeg(paste0(path,"/heatmap.jpeg"), units="in", width=10, height=7,res=600)
 DoHeatmap.1(CancerCell, T_EC_markers1, add.genes = markers,cex.row = 3,
             Top_n = 25, ident.use = "TALL and EC")
+dev.off()
+
+
+
+# compare EC 2019-01-25
+object@scale.data = readRDS("./data/Lymphoma_EC.scale.data_Harmony_12_20190125.rds")
+object <- SetAllIdent(object, id='orig.ident')
+EC_only <- SubsetData(object, ident.use = c("EC","EC-only"))
+
+Angiocrine_factors <- read.delim("data/seurat_resources/Angiocrine_factors.txt",
+                                 stringsAsFactors =F)
+Angiocrine_factors <- HumanGenes(EC_only, Angiocrine_factors[,1])
+blueprint_encode <- read.csv("../SingleR/output/blueprint_encode_main.csv", stringsAsFactors =F)
+EC_mark <- HumanGenes(EC_only,c(Angiocrine_factors,blueprint_encode$Endothelial_cells), unique = T)
+
+y = EC_only@scale.data[EC_mark,]
+library(gplots)
+
+hc <- hclust(as.dist(1-cor(as.matrix(y), method="spearman")), method="complete")
+cc = gsub("_.*","",hc$labels)
+cc = gsub("EC-only","#195016",cc)
+cc = gsub("EC","#B3DE69",cc)
+table(cc)
+jpeg(paste0(path,"/Heatmap2_EC.jpeg"), units="in", width=10, height=7,res=600)
+heatmap.2(as.matrix(y),
+          Colv = as.dendrogram(hc), Rowv= FALSE,
+          ColSideColors = cc, trace ="none",labCol = FALSE,dendrogram = "column",
+          key.xlab = "nUMI",
+          cexRow = 0.001,
+          margins = c(2,5),
+          #scale = "row",
+          breaks = seq(-3,3,length.out = 101),
+          col = bluered,
+          main = paste("compare EC cells only"))
+par(lend = 1)           # square line ends for the color legend
+legend(0, 0.8,       # location of the legend on the heatmap plot
+       legend = c("EC-only", "EC"), # category labels
+       col = c("#195016", "#B3DE69"),  # color key
+       lty= 1,             # line style
+       lwd = 10            # line width
+)
+          
 dev.off()

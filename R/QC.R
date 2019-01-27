@@ -18,9 +18,9 @@ if(!dir.exists("./data/")) dir.create("data")
 # ######################################################################
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
-df_samples <- readxl::read_excel("doc/181227_Single_cell_TALL_sample_list.xlsx")
+df_samples <- readxl::read_excel("doc/181230_Single_cell_TALL_sample_list.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("test",paste0("test1")))
+sample_n = which(df_samples$conditions %in% c("EC","EC+T-ALL","EC+T-ALL+anti-Notch1","T-ALL"))
 df_samples[sample_n,] %>% kable() %>% kable_styling()
 table(df_samples$tests);nrow(df_samples)
 samples <- df_samples$sample[sample_n]
@@ -68,8 +68,8 @@ for(i in 1:length(samples)){
 }
 
 #======1.1.2 QC before merge =========================
-cell.number <- sapply(object_Seurat, function(x) length(colnames(x)))
-QC_list <- lapply(object_Seurat, function(x) as.matrix(GetAssayData(x, slot = "counts")))
+cell.number <- sapply(object_Seurat, function(x) ncol(x@data))
+QC_list <- lapply(object_Seurat, function(x) as.matrix(x@data))
 median.nUMI <- sapply(QC_list, function(x) median(colSums(x)))
 median.nGene <- sapply(QC_list, function(x) median(apply(x,2,function(y) sum(length(y[y>0])))))
 
@@ -103,4 +103,4 @@ g1 <- lapply(c("nGene", "nUMI", "percent.mito"), function(features){
                 point.size.use = 0.2,size.x.use = 10, group.by = "ident",
                 x.lab.rot = T, do.return = T)
         })
-save(g1,file= paste0(path,"g1_11_20181231.Rda"))
+save(g1,file= paste0(path,"g1_11_20190125.Rda"))

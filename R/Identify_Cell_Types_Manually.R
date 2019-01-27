@@ -20,8 +20,8 @@ Endothelium <- HumanGenes(CancerCell,c("Cdh5","Pecam1","Flt1","Plvap","Kdr","ptp
                                    "Vwf","EMCN","Car4","VEGFA"))
 EC <- HumanGenes(CancerCell,c("IFI27","CD3D","HLA-B","IFI6"))
 
-test.markers <- unique(c(T_Cell,Treg,CD4_Naive_T,Endothelium))
-for(i in 1:length(EC)) {
+for(i in 1:length(markers)) {
+        
     jpeg(paste0("output/",EC[i],".jpeg"), units="in", width=10, height=7,
         res=600)
     p1 <- SingleFeaturePlot.1(object = CancerCell, feature = EC[i])
@@ -65,3 +65,7 @@ CancerCell@meta.data[EC_plus_TALL,"old.ident"] = "EC-plus-TALL"
 CancerCell@meta.data[EC2_plus_TALL,"old.ident"] = "EC2-plus-TALL"
 table(CancerCell@meta.data$old.ident)
 save(CancerCell, file="./output/CancerCell_20181024.RData")
+
+
+
+

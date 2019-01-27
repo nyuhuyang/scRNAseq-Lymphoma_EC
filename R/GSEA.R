@@ -16,56 +16,57 @@ source("../R/SingleR_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 # 5.1 load data ==============
-(lnames = load(file="./output/CancerCell_20181024.RData"))
+(load(file = "data/Lymphoma_EC_12_20190125.Rda"))
 
 # GSEA for EC ==================================
+object <- SetAllIdent(object, id = "tests")
+CancerCell <- SubsetData(object, ident.use = c("test6"))
+CancerCell <- SetAllIdent(CancerCell, id = "res.0.6")
 table(CancerCell@ident)
-EC <- SubsetData(CancerCell, ident.use = c("Endothelial cells","mv Endothelial cells"))
-EC@meta.data$orig.ident <- gsub("TALL-plus-EC-2","TALL-plus-EC",EC@meta.data$orig.ident)
-EC@meta.data$orig.ident <- gsub("TALL-plus-EC","EC-plus-TALL",EC@meta.data$orig.ident)
+EC <- SubsetData(CancerCell, ident.use = c(1,3,9,12))
 EC <- SetAllIdent(EC, id = "orig.ident")
-
+table(EC@ident)
+EC <- SubsetData(EC, ident.remove = "3119")
+EC %<>% NormalizeData
 PrepareGSEA(EC, k = 100)
 
 # Run GSEA
-GSEA_EC <- read_delim("output/20181215/gsea_report_for_EC-only_1544897354493.xls",
+GSEA_EC <- read_delim("output/20190127/gsea_report_for_3119-plus-EC_1548614640636.xls",
                         "\t", escape_double = FALSE, trim_ws = TRUE)
 GSEA_EC %>% head(20) %>% kable() %>% kable_styling()
 (gsea_path <- paste0("~/gsea_home/output/",tolower(format(Sys.Date(), "%b%d")), 
-                     "/c2.cp.EC_vs_EC.T.Gsea.1544897354493"))
-(c2.cp.EC_vs_EC.T <- sapply(GSEA_EC$NAME[1:10], function(name) {
+                     "/c2.cp.biocarta.EC.T_vs_EC.Gsea.1548614640636"))
+(c2.cp.biocarta.EC.T_vs_EC <- sapply(GSEA_EC$NAME[1:9], function(name) {
                                 paste0("enplot_",name, "_([0-9]+)*\\.png$")}) %>%
                 sapply(function(x) list.files(path = gsea_path, pattern =x)) %>%
                 .[sapply(.,length)>0] %>% #Remove empty elements from list with character(0)
                 paste(gsea_path, ., sep = "/")) 
-CombPngs(c2.cp.EC_vs_EC.T, ncol = 3)
+CombPngs(c2.cp.biocarta.EC.T_vs_EC, ncol = 3)
 
 
 # GSEA for T_cells ==================================
-T_cells <- SubsetData(CancerCell, ident.remove = c("Endothelial cells","mv Endothelial cells"))
-remove <- FeaturePlot(T_cells,features.plot = "CD3D", do.identify = T)
-cells.use <- T_cells@cell.names[!(T_cells@cell.names %in% remove)]
-T_cells <- SubsetData(CancerCell, cells.use = cells.use)
-
-T_cells <- SetAllIdent(T_cells, id = "orig.ident")
-T_cells@meta.data$orig.ident <- gsub("TALL-plus-EC-2","TALL-plus-EC",
-                                     T_cells@meta.data$orig.ident)
+object <- SetAllIdent(object, id = "tests")
+CancerCell <- SubsetData(object, ident.use = c("test6"))
+CancerCell <- SetAllIdent(CancerCell, id = "res.0.6")
+table(CancerCell@ident)
+T_cells <- SubsetData(CancerCell, ident.remove = c(1,3,9,10,12))
+T_cells@meta.data$orig.ident <- gsub("3119","T3119",T_cells@meta.data$orig.ident)
 T_cells <- SetAllIdent(T_cells, id = "orig.ident")
 
 PrepareGSEA(T_cells, k = 100)
 
 # Run GSEA
-GSEA_T <- read_delim("output/20181215/gsea_report_for_TALL-only_1544901923467.xls",
+GSEA_T <- read_delim("output/20190125/gsea_report_for_T3119-plus-EC_1548456752605.xls",
                       "\t", escape_double = FALSE, trim_ws = TRUE)
 GSEA_T %>% head(30) %>% kable() %>% kable_styling()
 (gsea_path <- paste0("~/gsea_home/output/",tolower(format(Sys.Date(), "%b%d")), 
-                     "/c2.cp.T_vs_T.EC.Gsea.1544901923467"))
-(c2.cp.T_vs_T.EC <- sapply(GSEA_T$NAME[1:9], function(name) {
+                     "/c2.cp.biocarta.T.EC_vs_T.Gsea.1548456752605"))
+(c2.cp.biocarta.T.EC_vs_T <- sapply(GSEA_T$NAME[1:9], function(name) {
         paste0("enplot_",name, "_.*\\.png$")}) %>%
                 sapply(function(x) list.files(path = gsea_path, pattern =x)) %>%
                 .[sapply(.,length)>0] %>% #Remove empty elements from list with character(0)
                 paste(gsea_path, ., sep = "/")) 
-CombPngs(c2.cp.T_vs_T.EC, ncol = 3)
+CombPngs(c2.cp.biocarta.T.EC_vs_T, ncol = 3)
 
 #====== 2.1 pathway analysis ==========================================
 
