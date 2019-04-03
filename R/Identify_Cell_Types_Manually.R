@@ -2,34 +2,36 @@ library(Seurat)
 library(SingleR)
 library(dplyr)
 library(tidyr)
+library(magrittr)
 library(kableExtra)
 source("../R/Seurat_functions.R")
 source("../R/SingleR_functions.R")
-
+path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path)) dir.create(path, recursive = T)
 #====== 2.1 identify phenotype for each cluster  ==========================================
-lnames = load(file="./output/CancerCell_20181024.RData")
-lnames
+(load(file="./output/object_20181024.RData"))
 # T cell
-T_Cell <- HumanGenes(CancerCell,c("CD2","CD3G","CD3D","CD4","CD8A","IL2RA","FOXP3",
-                           "IL7R","SELL","IL2RG","GIMAP5"))
+T_Cell <- FilterGenes(object,c("CD3G","CD3D","CD3E","CD8A","MALAT1","CD1B",
+                               "HLA-B","TUBB","PCNA","TGFB1","ZNF90","CXCR4"))
 
-Treg <- HumanGenes(CancerCell,c("FOXP3","CD4","IL2RA","CTLA4","PDCD1","ENTPD1","CD38",
-                         "ICOS","TNFSF9","TNFRSF9"))
-CD4_Naive_T <- HumanGenes(CancerCell,c("CD4","IL7R","GIMAP5","SELL","IL2RG"))
-Endothelium <- HumanGenes(CancerCell,c("Cdh5","Pecam1","Flt1","Plvap","Kdr","ptprb",
-                                   "Vwf","EMCN","Car4","VEGFA"))
-EC <- HumanGenes(CancerCell,c("IFI27","CD3D","HLA-B","IFI6"))
 
+EC <- FilterGenes(object,c("FN1","IGFBP4","TGM2","EMCN","SRGN",
+                           "VEGFA","VWF","KDR","FLT1","CDH5","FTL","VIM",
+                           "CCND1"))
+
+markers <-FilterGenes(object,c(T_Cell,EC))
+markers <- c("FTL","HLA-B","MALAT1","TUBB")
 for(i in 1:length(markers)) {
-        
-    jpeg(paste0("output/",EC[i],".jpeg"), units="in", width=10, height=7,
+    jpeg(paste0(path,markers[i],".jpeg"), units="in", width=10, height=7,
         res=600)
-    p1 <- SingleFeaturePlot.1(object = CancerCell, feature = EC[i])
+    p1 <- SingleFeaturePlot.1(object = object, feature = markers[i],
+                              gradient.use = c("lightgrey","blue4"),
+                              threshold= NULL)
     print(p1)
-    print(paste0(i,":",length(EC)))
+    print(paste0(i,":",length(markers)))
     dev.off()
 }
-CancerCell1 <- SplitSeurat(CancerCell, split.by = "orig.ident")
+object1 <- SplitSeurat(object, split.by = "orig.ident")
 
 
 # 2.2 add GeneSets score ==============
@@ -46,26 +48,30 @@ gene_sets <- lapply(paste0("data/seurat_resources/",gene_setsfiles),
 gene_sets[[(length(gene_sets)+1)]] = Angiocrine_factors
 gene_sets_names <- c(sub(".txt","",gene_setsfiles),"Angiocrine_factors")
 
-gene_sets <- lapply(gene_sets, function(x) HumanGenes(CancerCell,x))
+gene_sets <- lapply(gene_sets, function(x) FilterGenes(object,x))
 
 for(i in 1:length(gene_sets)){
-    CancerCell <- .AddModuleScore(CancerCell, genes.list = gene_sets[i],
+    object <- .AddModuleScore(object, genes.list = gene_sets[i],
                       ctrl.size = 5,enrich.name = gene_sets_names[i])
 }
 
 # 2.3 Split into 6 sample groups ==============
-table(CancerCell@meta.data$singler2sub)
-EC_index <- which(CancerCell@meta.data$singler2sub %in% c("Endothelial cells",
+table(object@meta.data$singler2sub)
+EC_index <- which(object@meta.data$singler2sub %in% c("Endothelial cells",
                                                         "mv Endothelial cells"))
 EC_plus_TALL <- intersect(EC_index,
-                          which(CancerCell@meta.data$old.ident %in% "TALL-plus-EC"))
+                          which(object@meta.data$old.ident %in% "TALL-plus-EC"))
 EC2_plus_TALL <- intersect(EC_index,
-                          which(CancerCell@meta.data$old.ident %in% "TALL-plus-EC-2"))
-CancerCell@meta.data[EC_plus_TALL,"old.ident"] = "EC-plus-TALL"
-CancerCell@meta.data[EC2_plus_TALL,"old.ident"] = "EC2-plus-TALL"
-table(CancerCell@meta.data$old.ident)
-save(CancerCell, file="./output/CancerCell_20181024.RData")
+                          which(object@meta.data$old.ident %in% "TALL-plus-EC-2"))
+object@meta.data[EC_plus_TALL,"old.ident"] = "EC-plus-TALL"
+object@meta.data[EC2_plus_TALL,"old.ident"] = "EC2-plus-TALL"
+table(object@meta.data$old.ident)
+save(object, file="./output/object_20181024.RData")
 
 
-
-
+# 2.4 Find conservative markers ==============
+head(object@meta.data)
+object %<>% SetAllIdent("res.0.6")
+TSNEPlot(object)
+res_markers <- FindAllMarkers.UMI(object,logfc.threshold=1,min.pct = 0.8)
+write.csv(res_markers,paste0(path,"res_markers.csv"))

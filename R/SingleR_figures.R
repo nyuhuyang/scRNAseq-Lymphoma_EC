@@ -12,8 +12,9 @@ path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 #====== 3.2 SingleR specifications ==========================================
 # Step 1: Spearman coefficient
-(load(file = "output/20181231/singler_Lymphoma_EC_12_20190125.Rda"))
 (load(file = "data/Lymphoma_EC_12_20190125.Rda"))
+(load(file = "output/20181231/singler_Lymphoma_EC_12_20190125.Rda"))
+
 ##############################
 # add singleR label to Seurat
 ###############################
@@ -89,18 +90,17 @@ TSNEPlot.1(object, colors.use = ExtractMetaColor(object),no.legend = F)
 ##############################
 # draw tsne plot
 ##############################
-p4 <- DimPlot.1(object = object, do.label = T, group.by = "ident", 
-                reduction.use= "tsne",
+p3 <- TSNEPlot.1(object = object, do.label = T, group.by = "ident", 
                  do.return = TRUE, no.legend = T, label.repel =T,
                  colors.use = ExtractMetaColor(object),
-                 pt.size = 1,label.size = 3,force = 2)+
-  ggtitle("Cell type labeling by Blueprint + Encod")+
+                 pt.size = 1,label.size = 5,force = 2)+
+  ggtitle("")+
   theme(text = element_text(size=10),							
         plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
 
-jpeg(paste0(path,"Plottsne_sub2.jpeg"), units="in", width=10, height=7,
+jpeg(paste0(path,"Plottsne_res.jpeg"), units="in", width=10, height=7,
      res=600)
-print(p4)
+print(p3)
 dev.off()
 
 save(object,file="./data/Lymphoma_EC_12_20190125.Rda")

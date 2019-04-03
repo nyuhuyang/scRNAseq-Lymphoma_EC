@@ -8,6 +8,7 @@ library(SingleR)
 library(dplyr)
 library(tidyr)
 library(MAST)
+library(magrittr)
 library(sva)
 library(kableExtra)
 library(readr)
@@ -20,45 +21,51 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 # GSEA for EC ==================================
 object <- SetAllIdent(object, id = "tests")
-CancerCell <- SubsetData(object, ident.use = c("test6"))
+CancerCell <- SubsetData(object, ident.use = c("test4"))
 CancerCell <- SetAllIdent(CancerCell, id = "res.0.6")
 table(CancerCell@ident)
+TSNEPlot(CancerCell, do.label = T)
 EC <- SubsetData(CancerCell, ident.use = c(1,3,9,12))
+#EC@meta.data$orig.ident = gsub("TALL-plus-EC-2","TALL-plus-EC",
+#                               EC@meta.data$orig.ident)
 EC <- SetAllIdent(EC, id = "orig.ident")
 table(EC@ident)
-EC <- SubsetData(EC, ident.remove = "3119")
+EC <- SubsetData(EC, ident.use = c("EC-only","TALL-plus-EC"))
 EC %<>% NormalizeData
 PrepareGSEA(EC, k = 100)
 
 # Run GSEA
-GSEA_EC <- read_delim("output/20190127/gsea_report_for_3119-plus-EC_1548614640636.xls",
+GSEA_EC <- read_delim("output/20190131/gsea_report_for_EC_only_vs_TALL_plus_EC_1548993830806.xls",
                         "\t", escape_double = FALSE, trim_ws = TRUE)
-GSEA_EC %>% head(20) %>% kable() %>% kable_styling()
+GSEA_EC %>% head(10) %>% kable() %>% kable_styling()
 (gsea_path <- paste0("~/gsea_home/output/",tolower(format(Sys.Date(), "%b%d")), 
-                     "/c2.cp.biocarta.EC.T_vs_EC.Gsea.1548614640636"))
-(c2.cp.biocarta.EC.T_vs_EC <- sapply(GSEA_EC$NAME[1:9], function(name) {
+                     "/h.all.EC_vs_3119.plus.EC.Gsea.1548978407433"))
+(h.all.EC_vs_3119.plus.EC <- sapply(GSEA_EC$NAME[1:9], function(name) {
                                 paste0("enplot_",name, "_([0-9]+)*\\.png$")}) %>%
                 sapply(function(x) list.files(path = gsea_path, pattern =x)) %>%
                 .[sapply(.,length)>0] %>% #Remove empty elements from list with character(0)
                 paste(gsea_path, ., sep = "/")) 
-CombPngs(c2.cp.biocarta.EC.T_vs_EC, ncol = 3)
+CombPngs(h.all.EC_vs_3119.plus.EC, ncol = 3)
 
 
 # GSEA for T_cells ==================================
 object <- SetAllIdent(object, id = "tests")
-CancerCell <- SubsetData(object, ident.use = c("test6"))
+CancerCell <- SubsetData(object, ident.use = c("test5","test6"))
 CancerCell <- SetAllIdent(CancerCell, id = "res.0.6")
+TSNEPlot(CancerCell, do.label = T)
 table(CancerCell@ident)
 T_cells <- SubsetData(CancerCell, ident.remove = c(1,3,9,10,12))
-T_cells@meta.data$orig.ident <- gsub("3119","T3119",T_cells@meta.data$orig.ident)
+#T_cells@meta.data$orig.ident = gsub("TALL-plus-EC-2","TALL-plus-EC",T_cells@meta.data$orig.ident)
 T_cells <- SetAllIdent(T_cells, id = "orig.ident")
-
+T_cells <- SubsetData(T_cells, ident.use = c("3119","E-3119"))
+TSNEPlot(T_cells, do.label = T)
+T_cells %<>% NormalizeData
 PrepareGSEA(T_cells, k = 100)
 
 # Run GSEA
-GSEA_T <- read_delim("output/20190125/gsea_report_for_T3119-plus-EC_1548456752605.xls",
+GSEA_T <- read_delim("output/20190201/gsea_report_for_3119_versus_E-3119.xls",
                       "\t", escape_double = FALSE, trim_ws = TRUE)
-GSEA_T %>% head(30) %>% kable() %>% kable_styling()
+GSEA_T %>% head(16) %>% kable() %>% kable_styling()
 (gsea_path <- paste0("~/gsea_home/output/",tolower(format(Sys.Date(), "%b%d")), 
                      "/c2.cp.biocarta.T.EC_vs_T.Gsea.1548456752605"))
 (c2.cp.biocarta.T.EC_vs_T <- sapply(GSEA_T$NAME[1:9], function(name) {
