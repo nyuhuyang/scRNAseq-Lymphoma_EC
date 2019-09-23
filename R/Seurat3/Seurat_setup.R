@@ -6,172 +6,172 @@
 
 library(Seurat)
 library(dplyr)
-library(scran)
+library(cowplot)
 library(kableExtra)
 library(magrittr)
-library(ggplot2)
-library(cowplot)
-library(harmony)
-source("../R/Seurat_functions.R")
+source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
-if(!dir.exists(path)) dir.create(path, recursive = T)
+if(!dir.exists(path))dir.create(path, recursive = T)
 ########################################################################
 #
 #  1 Seurat Alignment 
 # 
 # ######################################################################
 #======1.1 Setup the Seurat objects =========================
-# read sample summary list
-df_samples <- readxl::read_excel("doc/181227_Single_cell_TALL_sample_list.xlsx")
+# Load the mouse.eyes dataset
+
+# setup Seurat objects since both count matrices have already filtered
+# cells, we do no additional filtering here
+df_samples <- readxl::read_excel("doc/20190814_scRNAseq_info.xlsx")
+df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("test",paste0("test1")))
-df_samples[sample_n,] %>% kable() %>% kable_styling()
-table(df_samples$tests);nrow(df_samples)
-samples <- df_samples$sample[sample_n]
-sample.id <- df_samples$sample.id[sample_n]
-conditions <- df_samples$conditions[sample_n]
-projects <- df_samples$project[sample_n]
-tissues <- df_samples$tissue[sample_n]
+sample_n = which(df_samples$group %in% c("3119","EC","RO2"))
+df_samples <- df_samples[sample_n,]
+print(df_samples)
+(samples = df_samples$sample)
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "./data/sce_11_20181230.Rd"))
+(load(file = "data/sce_10_20190922.Rda"))
 names(sce_list)
-object_Seurat <- lapply(sce_list, as.Seurat) %>%
-    lapply(FindVariableFeatures, selection.method = "vst",
-           nfeatures = 2000, verbose = FALSE)
+object_list <- lapply(sce_list, as.Seurat)
 
 for(i in 1:length(samples)){
-    object_Seurat[[i]]$conditions <- conditions[i]
-    object_Seurat[[i]]$tissues <- tissues[i]
+    object_list[[i]]$orig.ident <- df_samples$sample[i]
+    object_list[[i]]$conditions <- df_samples$conditions[i]
+    object_list[[i]]$group <- df_samples$group[i]
+    object_list[[i]]$project <- df_samples$project[i]
+    object_list[[i]]$tests <- df_samples$tests[i]
+    object_list[[i]]$tissue <- df_samples$tissue[i]
+    object_list[[i]]$date <- gsub(" UTC","",df_samples$date[i])
+    Idents(object_list[[i]]) <- df_samples$sample[i]
 }
+
+object1 <- Reduce(function(x, y) merge(x, y, do.normalize = F), object_list)
+object@meta.data$date <- object1@meta.data$date
 #========1.3 merge ===================================
-# Integration datasets
-# dims = 10 and 50
-#object.anchors <- FindIntegrationAnchors(object.list = object_Seurat, dims = 1:30)
-#object <- IntegrateData(anchorset = object.anchors, dims = 1:30)
-object <- Reduce(function(x, y) merge(x, y, do.normalize = F), object_Seurat)
+# https://support.bioconductor.org/p/76745/
+# Don't use ComBat on raw counts
+object <- Reduce(function(x, y) merge(x, y, do.normalize = F), object_list)
+object@assays$RNA@data = object@assays$RNA@data *log(2)
+remove(sce_list,object_list);GC()
 
-# switch to integrated assay. The variable features of this assay are
-# automatically set during IntegrateData
-#DefaultAssay(object = object) <- "integrated"
-remove(sce_list,object_Seurat,object.anchors);GC()
+(remove <- which(colnames(object@meta.data) %in% "ident"))
+meta.data = object@meta.data[,-remove]
+object@meta.data = meta.data 
+remove(meta.data);GC()
 
-#======1.4 mito, QC, filteration =========================
-(mito.features <- grep(pattern = "^MT-", x = rownames(object),value = TRUE))
-percent.mito <- Matrix::colSums(GetAssayData(object, slot = 'data')[mito.features, ])/
-    Matrix::colSums(GetAssayData(object, slot = 'data'))
-object[["percent.mito"]] <- percent.mito
-Idents(object) = factor(Idents(object),levels = samples)
-(load(file = "output/20181230/g1_11_20181230.Rda"))
+#======1.3 batch-correct using ComBat =========================
+table(batch.effect <- object@meta.data[,"tests"])
+names(batch.effect) = rownames(object@meta.data)
 
-object %<>% subset(subset = nFeature_RNA > 700 & nCount_RNA > 900 & percent.mito < 0.05)
-# FilterCellsgenerate Vlnplot before and after filteration
-g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mito"), function(features){
-    VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)
-})
+data = object@assays$RNA@data
+table(rowSums(data)>0)
+data = data[rowSums(data)>0,]
 
-save(g2,file= paste0(path,"g2_11_20181230.Rda"))
-jpeg(paste0(path,"/S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
-print(plot_grid(g1[[1]]+ggtitle("nGene in raw data")+ 
-                    scale_y_log10(limits = c(100,10000)),
-                g2[[1]]+ggtitle("nGene after filteration")+ 
-                    scale_y_log10(limits = c(100,10000))))
-dev.off()
-jpeg(paste0(path,"/S1_nUMI.jpeg"), units="in", width=10, height=7,res=600)
-print(plot_grid(g1[[2]]+ggtitle("nUMI in raw data")+ 
-                    scale_y_log10(limits = c(500,100000)),
-                g2[[2]]+ggtitle("nUMI after filteration")+ 
-                    scale_y_log10(limits = c(500,100000))))
-dev.off()
-jpeg(paste0(path,"/S1_mito.jpeg"), units="in", width=10, height=7,res=600)
-print(plot_grid(g1[[3]]+ggtitle("mito % in raw data")+ 
-                    ylim(c(0,0.5)),
-                g2[[3]]+ggtitle("mito % after filteration")+ 
-                    ylim(c(0,0.5))))
+jpeg(paste0(path,"Combat_data.jpeg"), units="in", width=10, height=7,res=600)
+data_combat = ComBat(as.matrix(data), batch.effect, prior.plots=T, par.prior=TRUE)
 dev.off()
 
-FeatureScatter(object, feature1 = "nCount_RNA", feature2 = "percent.mito")
+min(matrixStats::rowMins(data_combat))
+data_combat[data_combat < 0] = 0
+object@assays$RNA@data = as(data_combat, "sparseMatrix")
+remove(data,data_combat,batch.effect);GC()
 
-#======1.5 Add Cell-cycle score =========================
-# Read in a list of cell cycle markers, from Tirosh et al, 2015
-cc.genes <- readLines(con = "../R/seurat_resources/regev_lab_cell_cycle_genes.txt")
-s.genes <- HumanGenes(object=object ,cc.genes[1:43])
-g2m.genes <- HumanGenes(object,cc.genes[44:97])
-object <- CellCycleScoring(object = object, s.features = s.genes, g2m.features = g2m.genes)
-"Error: Insufficient data values to produce 24 bins."
-RidgePlot(object = object, features = HumanGenes(object,c("CCND1","CDK4","CCND2")))
 
-#======1.6 NormalizeData and ScaleData =========================
-object <- NormalizeData(object, normalization.method = "LogNormalize", scale.factor = 1e4)
+######################################
 
-object <- FindVariableFeatures(object, selection.method = 'mean.var.plot',
-                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(0.75, Inf))
-length(x = VariableFeatures(object))
-object <- ScaleData(object, features= rownames(object))
+# After removing unwanted cells from the dataset, the next step is to normalize the data.
+#object <- NormalizeData(object = object, normalization.method = "LogNormalize", 
+#                      scale.factor = 10000)
+object <- FindVariableFeatures(object = object, selection.method = "vst",
+                               num.bin = 20,
+                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
 
-#======1.6 PCA Determine statistically significant principal components=======================
-# Run the standard workflow for visualization and clustering
-object <- RunPCA(object, features = VariableFeatures(object),
-                 npcs = 50, verbose = FALSE)
+# Identify the 20 most highly variable genes
+top20 <- head(VariableFeatures(object), 20)
 
-jpeg(paste0(path,"/S1_PCElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
-ElbowPlot(object, ndims = 50)
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(object)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = TRUE)
+jpeg(paste0(path,"VariableFeaturePlot.jpeg"), units="in", width=10, height=7,res=600)
+print(plot2)
 dev.off()
-jpeg(paste0(path,"/S1_PCHeatmap.jpeg"), units="in", width=10, height=7,res=600)
-DimHeatmap(object, dims = c(1:3,35:40), cells = 500, balanced = TRUE)
+#======1.3 1st run of pca-tsne  =========================
+object <- ScaleData(object = object,features = VariableFeatures(object))
+object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = 100)
+object <- JackStraw(object, num.replicate = 20,dims = 100)
+object <- ScoreJackStraw(object, dims = 1:100)
+
+jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
+JackStrawPlot(object, dims = 60:70)+
+    ggtitle("JackStrawPlot")+
+    theme(text = element_text(size=15),	
+          plot.title = element_text(hjust = 0.5,size = 18))
+dev.off()
+npcs =65
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindClusters(reduction = "pca",resolution = 0.6,
+                       dims.use = 1:npcs, print.output = FALSE)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
+object@assays$RNA@scale.data = matrix(0,0,0)
+
+object@meta.data$orig.ident %<>% as.factor()
+object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
+p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+                 do.return = T,no.legend = F,label.size = 4, repel = T, title = "Original")
+p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+                 no.legend = F,label.size = 4, repel = T, title = "Original")
+
+#======1.5 Performing SCTransform and integration =========================
+set.seed(100)
+object_list <- SplitObject(object, split.by = "tests")
+remove(object);GC()
+object_list %<>% lapply(SCTransform)
+object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
+options(future.globals.maxSize= object.size(object_list)*1.5)
+object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
+                                  verbose = FALSE)
+anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
+                                  anchor.features = object.features)
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT")
+
+remove(anchors,object_list);GC()
+object %<>% RunPCA(npcs = 100, verbose = FALSE)
+npcs =65
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindClusters(reduction = "pca",resolution = 0.6,
+                         dims.use = 1:npcs,print.output = FALSE)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
+p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+                 label.size = 4, repel = T,title = "Intergrated tSNE plot")
+p3 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+                 label.size = 4, repel = T,title = "Intergrated UMAP plot")
+#=======1.9 summary =======================================
+jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p0+ggtitle("Clustering without integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)),
+          p2+ggtitle("Clustering with integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-RunUMAP
-
-object <- JackStraw(object, num.replicate = 100,dims = 50)
-object <- ScoreJackStraw(object, dims = 1:50)
-p4 <- JackStrawPlot(object = object, dims = 30:40)
-jpeg(paste0(path,"/S1_JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-p4
+jpeg(paste0(path,"S1_remove_batch_umap.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p1+ggtitle("Clustering without integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)),
+          p3+ggtitle("Clustering with integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-object <- FindNeighbors(object, dims = 1:37)
-object <- FindClusters(object, resolution = 0.6)
+TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+         do.return = F, no.legend = F, title = "tSNE plot for all clusters",
+         pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 
-#======1.7 RunHarmony=======================
-object <- RunTSNE(object, dims = 1:37)
-p1 <- DimPlot(object, reduction = 'tsne',group.by="orig.ident",pt.size = 1,label = T,
-              label.size = 4, repel = T)
-system.time(object %<>% RunHarmony.1(group.by= "orig.ident", dims.use = 1:30,
-                                   theta = 2, plot_convergence = TRUE,
-                                   nclust = 50, max.iter.cluster = 100))
-Idents(object) %<>% factor(levels = samples)
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+           do.return = F, no.legend = F, title = "UMAP plot for all clusters",
+           pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
 
-
-jpeg(paste0(path,"/S1_Harmony_DimHeatmap.jpeg"), units="in", width=10, height=7,res=600)
-DimHeatmap(object = object, reduction.type = "harmony", cells.use = 500, 
-           dim.use = c(1:3,18:20), do.balanced = TRUE)
-dev.off()
-
-#========1.6 Seurat tSNE Functions for Integrated Analysis Using Harmony Results=======
-system.time({
-    object %<>% RunTSNE(reduction.use = "harmony", dims.use = 1:50, do.fast = TRUE)
-    object %<>% FindClusters(reduction.type = "harmony", resolution = 0.6, dims.use = 1:50,
-                             save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
-                             force.recalc = TRUE, print.output = FALSE)
-})
-
-p2 <- DimPlot(object, reduction = 'tsne',group.by="orig.ident",pt.size = 1,label = T,
-              label.size = 4, repel = T)
-jpeg(paste0(path,"/S1_Harmony_TSNEPlot.jpeg"), units="in", width=10, height=7,res=600)
-plot_grid(p1, p2)
-dev.off()
-
-g_Harmony <- DimPlot(object = object, label = F, group.by = "ident",
-                        do.return = TRUE, no.legend = F, 
-                        #colors.use = ExtractMetaColor(object),
-                        pt.size = 1,label.size = 6 )+
-    ggtitle("Tsne plot of all cell types")+
-    theme(text = element_text(size=15),							
-          plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
-
-jpeg(paste0(path,"/TSNEplot-Harmony.jpeg"), units="in", width=10, height=7,res=600)
-print(g_Harmony)
-dev.off()
-
-save(object, file = "./data/Lymphoma_EC_11_20181231.Rda")
+object@assays$integrated@scale.data = matrix(0,0,0)
+save(object, file = "data/Lymphoma_EC_10_20190922.Rda")
+object_data = object@assays$RNA@data
+save(object_data, file = "data/Lymphoma.data_EC_10_20190922.Rda")
