@@ -62,10 +62,11 @@ object@meta.data$cell.type_conditions = as.character(Idents(object))
 Idents(object) = "cell.type_conditions"
 object %<>% sortIdent
 table(Idents(object))
-EC_markers <- FindAllMarkers.UMI(object, assay = "SCT",
-                                   return.thresh = 1,
-                                   test.use = "MAST",min.pct = -Inf,
-                                   min.cells.gene = -Inf, min.cells.group = -Inf,
-                                   only.pos = F, # don't change it!
-                                   logfc.threshold = -Inf)
+EC_markers <- FindMarkers.UMI(object, assay = "RNA",
+                              ident.1 = "TEC", ident.2 = "EC",
+                              #return.thresh = 1,
+                              test.use = "MAST",min.pct = -Inf,
+                              min.cells.feature = -Inf, min.cells.group = -Inf,
+                              only.pos = F, # don't change it!
+                              logfc.threshold = -Inf)
 write.csv(EC_markers,paste0(path,"EC_markers_",date,".csv"))
