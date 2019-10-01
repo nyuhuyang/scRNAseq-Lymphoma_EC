@@ -20,7 +20,8 @@ cell.type = c("EC","TALL")
 k=2
 TEC <- list()
 for(i in seq_along(c("2018-10-18","2018-12-30"))){
-        TEC[[i]] = read.csv(file=paste0("output/20190926/",cell.type[k],"_markers_",dates[i],".csv"),
+        TEC[[i]] = read.csv(file=paste0("Yang/6. Differential analysis/",cell.type[k],
+                                        "/",cell.type[k],"_markers_",dates[i],"_RNA.csv"),
                                 row.names = 1,stringsAsFactors=F)
         #TEC[[i]] = TEC[[i]][TEC[[i]]$cluster %in% "TEC",]
         TEC[[i]]$gene = rownames(TEC[[i]])

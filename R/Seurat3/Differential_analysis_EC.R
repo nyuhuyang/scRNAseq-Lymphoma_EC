@@ -60,13 +60,14 @@ object %<>% RenameIdents("Endothelial cells_EC" = "EC",
                          "Endothelial cells_EC+T-ALL" = "TEC")
 object@meta.data$cell.type_conditions = as.character(Idents(object))
 Idents(object) = "cell.type_conditions"
-object %<>% sortIdent
+object %<>% sortIdent()
 table(Idents(object))
-EC_markers <- FindMarkers.UMI(object, assay = "RNA",
+assay = "SCT";slot = "scale.data"
+EC_markers <- FindMarkers.UMI(object, assay = assay,slot = slot,
                               ident.1 = "TEC", ident.2 = "EC",
                               #return.thresh = 1,
                               test.use = "MAST",min.pct = -Inf,
                               min.cells.feature = -Inf, min.cells.group = -Inf,
                               only.pos = F, # don't change it!
                               logfc.threshold = -Inf)
-write.csv(EC_markers,paste0(path,"EC_markers_",date,".csv"))
+write.csv(EC_markers,paste0(path,"EC_markers_",date,"_",assay,"_",slot,".csv"))

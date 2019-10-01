@@ -6,7 +6,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(scales)
-library(ggthemes)z z zzzz
+library(ggthemes)
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)

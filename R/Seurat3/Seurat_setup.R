@@ -46,8 +46,6 @@ for(i in 1:length(samples)){
     Idents(object_list[[i]]) <- df_samples$sample[i]
 }
 
-object1 <- Reduce(function(x, y) merge(x, y, do.normalize = F), object_list)
-object@meta.data$date <- object1@meta.data$date
 #========1.3 merge ===================================
 # https://support.bioconductor.org/p/76745/
 # Don't use ComBat on raw counts
@@ -60,7 +58,18 @@ meta.data = object@meta.data[,-remove]
 object@meta.data = meta.data 
 remove(meta.data);GC()
 
-#======1.3 batch-correct using ComBat =========================
+object_data = object@assays$RNA@data
+remove(object);GC()
+(load(file="data/Lymphoma_EC_10_20190922.Rda"))
+
+DefaultAssay(object) = "RNA"
+object_data = object_data[rownames(object),colnames(object)]
+
+table(rownames(object_data) == rownames(object))
+table(colnames(object_data) == colnames(object))
+object_data[1:5,1:5]
+object@assays$RNA@data = object_data
+#======1.3 batch-correct using ComBat (skip)=========================
 table(batch.effect <- object@meta.data[,"tests"])
 names(batch.effect) = rownames(object@meta.data)
 
