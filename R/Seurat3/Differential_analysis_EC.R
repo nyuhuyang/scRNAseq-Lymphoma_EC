@@ -62,12 +62,16 @@ object@meta.data$cell.type_conditions = as.character(Idents(object))
 Idents(object) = "cell.type_conditions"
 object %<>% sortIdent()
 table(Idents(object))
-assay = "SCT";slot = "scale.data"
-EC_markers <- FindMarkers.UMI(object, assay = assay,slot = slot,
-                              ident.1 = "TEC", ident.2 = "EC",
-                              #return.thresh = 1,
-                              test.use = "MAST",min.pct = -Inf,
-                              min.cells.feature = -Inf, min.cells.group = -Inf,
-                              only.pos = F, # don't change it!
-                              logfc.threshold = -Inf)
-write.csv(EC_markers,paste0(path,"EC_markers_",date,"_",assay,"_",slot,".csv"))
+assay = c("RNA","SCT","SCT"); slot = c("data","data","scale.data")
+for(i in seq_along(assay)){
+        EC_markers <- FindMarkers.UMI(object, assay = assay[i],slot = slot[i],
+                                      ident.1 = "TEC", ident.2 = "EC",
+                                      test.use = "MAST",
+                                      min.pct = -Inf,
+                                      min.cells.feature = -Inf, 
+                                      min.cells.group = -Inf,
+                                      only.pos = F, # don't change it!
+                                      logfc.threshold = -Inf)
+        write.csv(EC_markers,paste0(path,"EC_markers_",date,"_",assay[i],"_",slot[i],".csv"))
+        svMisc::progress(i/length(assay)*100)
+        }

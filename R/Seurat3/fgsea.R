@@ -17,26 +17,8 @@ library(ggsci)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
-# 3.1.1 load data
-dates <- c("2018-10-18","2018-12-30")
-cluster <- c("EC+RO2", "EC+3119")
-cell.type = c("EC","TALL")
-k=1
-res <- list()
-for(i in seq_along(dates)){
-        res[[i]] = read.csv(file = paste0("Yang/6. Differential analysis/",cell.type[k],
-                                          "/",cell.type[k],"_markers_",dates[i],"_RNA.csv"),
-                            row.names = 1,stringsAsFactors=F)
-        #res[[i]] = res[[i]][res[[i]]$cluster %in% "TEC",]
-        res[[i]]$gene = rownames(res[[i]])
-        res[[i]]$cluster = cluster[i]
-}
-
-res = bind_rows(res)
-res = res[order(res["p_val_adj"]),]
-hist(res$avg_logFC,breaks = 200, xlim = c(-1,1))
-head(res, 20)
-
+# 3.1.1 load pathway
+set.seed(100)
 hallmark <- gmtPathways("../seurat_resources/msigdb/h.all.v6.2.symbols.gmt")
 biocarta <- gmtPathways("../seurat_resources/msigdb/c2.cp.biocarta.v6.2.symbols.gmt")
 kegg <- gmtPathways("../seurat_resources/msigdb/c2.cp.kegg.v6.2.symbols.gmt")
@@ -52,24 +34,59 @@ names(hallmark) = gsub("HALLMARK","",names(hallmark))
 names(hallmark) = gsub("_"," ",names(hallmark))
 names(allpathways) = gsub("_"," ",names(allpathways))
 
-hallmark_fgesa <- FgseaDotPlot(stats=res, pathways=hallmark, nperm=1000,
-             avg_logFC = 0 ,padj = 0.25,pval = 0.05,
-             order.by = c("EC+RO2","NES"),decreasing = F,
-             size = "-log10(pval)", fill = "NES",do.return = T,
-             sample = paste("Educated",cell.type[k]), 
-             pathway.name = "Hallmark",rotate.x.text = T,
-             font.xtickslab=14, font.main=18,font.ytickslab = 10,
-             font.legend = list(size = 14),font.label = list(size = 14),
-             width=8, height=7,hjust=0.8)
-write.csv(hallmark_fgesa,paste0(path,cell.type[k],"_hallmark_fgesa_RNA.csv"))
+# 3.1.2 read DE files and generate GSEA
 
-allpathways_fgesa <- FgseaDotPlot(stats=res, pathways=allpathways, nperm=1000,
-             avg_logFC =0 ,padj = 0.25,pval = 0.05,
-             order.by = c("EC+RO2","NES"),decreasing = F,
-             size = "-log10(pval)", fill = "NES",do.return = T,
-             sample = paste("Educated",cell.type[k]), 
-             rotate.x.text = T, pathway.name = "Hallmark, biocarta,and KEGG",
-             font.xtickslab=14, font.main=12,font.ytickslab = 8,
-             font.legend = list(size = 12),font.label = list(size = 12),
-             width=6, height=7,hjust=0.67)
-write.csv(allpathways_fgesa,paste0(path,cell.type[k],"allpathways_fgesa_RNA.csv"))
+assay = c("RNA","SCT","SCT")
+slot = c("data","data","scale.data")
+dates <- c("2018-10-18","2018-12-30")
+cluster <- c("EC+RO2", "EC+3119")
+cell.type = c("EC","TALL")
+for(d in seq_along(assay)){
+        assay_slot = paste0(path,assay[d],"_",slot[d],"/")
+        if(!dir.exists(assay_slot)) dir.create(assay_slot, recursive = T)
+        for(k in seq_along(cell.type)){
+                dataset <- list()
+                for(i in seq_along(dates)){
+                        
+                        dataset[[i]] = read.csv(file = paste0(assay_slot,cell.type[k],"_markers_",
+                                                              dates[i],"_",basename(assay_slot),".csv"),
+                                                row.names = 1,stringsAsFactors=F)
+                        if(basename(assay_slot) == "SCT_scale.data") {
+                                dataset[[i]]$avg_logFC = tanh(dataset[[i]]$avg_logFC)
+                                dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC*4*log2(exp(1))
+                        }
+                        dataset[[i]]$cluster = cluster[i]
+                        dataset[[i]]$gene = rownames(dataset[[i]])
+                }
+                res = bind_rows(dataset)
+                res = res[order(res["p_val_adj"]),]
+                avg_logFC = 0; padj = 1; pval = 0.05
+                hallmark_fgesa <- FgseaDotPlot(stats=res, pathways=hallmark, nperm=1000,
+                                               order.by = c("EC+RO2","NES"),decreasing = F,
+                                               size = "-log10(pval)", fill = "NES",do.return = T,
+                                               sample = paste0("Educated_",cell.type[k]), 
+                                               pathway.name = "Hallmark",rotate.x.text = T,
+                                               font.xtickslab=14, font.main=18,font.ytickslab = 10,
+                                               font.legend = list(size = 14),font.label = list(size = 14),
+                                               width=9, height=7,hjust=0.8,
+                                               save_path = paste(paste0(assay_slot,"Dotplot"),cell.type[k],"hallmark",
+                                                                  avg_logFC,padj,pval,
+                                                                 basename(assay_slot),".jpeg",sep = "_"))
+                write.csv(hallmark_fgesa,paste0(assay_slot,cell.type[k],"_hallmark_fgesa",basename(assay_slot),".csv"))
+                
+                allpathways_fgesa <- FgseaDotPlot(stats=res, pathways=allpathways, nperm=1000,
+                                                  order.by = c("EC+RO2","NES"),decreasing = F,
+                                                  size = "-log10(pval)", fill = "NES",do.return = T,
+                                                  sample = paste("Educated",cell.type[k]), 
+                                                  rotate.x.text = T, pathway.name = "Hallmark, biocarta,and KEGG",
+                                                  font.xtickslab=14, font.main=12,font.ytickslab = 8,
+                                                  font.legend = list(size = 12),font.label = list(size = 12),
+                                                  width=8, height=7,hjust=0.67,
+                                                  save_path = paste(paste0(assay_slot,"Dotplot"),cell.type[k],"allpathways",
+                                                                    avg_logFC,padj,pval,
+                                                                    basename(assay_slot),".jpeg",sep = "_"))
+                write.csv(allpathways_fgesa,paste0(assay_slot,cell.type[k],"allpathways_fgesa",basename(assay_slot),".csv"))
+                
+        }
+        svMisc::progress(d/length(assay)*100)
+}

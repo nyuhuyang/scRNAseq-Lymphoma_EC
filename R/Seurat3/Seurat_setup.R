@@ -9,6 +9,7 @@ library(dplyr)
 library(cowplot)
 library(kableExtra)
 library(magrittr)
+library(batchelor)
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -86,6 +87,18 @@ data_combat[data_combat < 0] = 0
 object@assays$RNA@data = as(data_combat, "sparseMatrix")
 remove(data,data_combat,batch.effect);GC()
 
+#======1.4 mnncorrect =========================
+# https://support.bioconductor.org/p/106010/
+(load(file="data/Lymphoma_EC_10_20190922.Rda"))
+Seurat_list <- SplitObject(object, split.by = "orig.ident")
+Seurat_list <- lapply(Seurat_list, function(x) x@assays$RNA@data)
+system.time(out <- fastMNN(Seurat_list[[1]],Seurat_list[[2]],
+                           Seurat_list[[3]],Seurat_list[[4]],
+                           Seurat_list[[5]],Seurat_list[[6]],
+                           Seurat_list[[7]],Seurat_list[[8]],
+                           Seurat_list[[9]],Seurat_list[[10]]))
+object@assays$RNA@data = out
+save(object, file = "data/Lymphoma_EC_10_20191002.Rda")
 
 ######################################
 
@@ -181,6 +194,6 @@ UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
            pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
 
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lymphoma_EC_10_20190922.Rda")
+save(object, file = "data/Lymphoma_EC_10_20191002.Rda")
 object_data = object@assays$RNA@data
 save(object_data, file = "data/Lymphoma.data_EC_10_20190922.Rda")
