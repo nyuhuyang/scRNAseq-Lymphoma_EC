@@ -12,8 +12,8 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
 # set group
-assay = c("RNA","SCT","SCT")
-slot = c("data","data","scale.data")
+assay = c("RNA","RNA","SCT","SCT")
+slot = c("data","data_MNN","data","scale.data")
 dates <- c("2018-10-18","2018-12-30")
 cluster <- c("EC+RO2", "EC+3119")
 cell.type = c("EC","TALL")
@@ -25,12 +25,16 @@ for(d in seq_along(assay)){
                 dataset <- list()
                 for(i in seq_along(dates)){
 
-                        dataset[[i]] = read.csv(file = paste0(assay_slot,cell.type[k],"_markers_",
+                        dataset[[i]] = read.csv(file = paste0("Yang/6. Differential analysis/",
+                                                              basename(assay_slot),"/", cell.type[k],"_markers_",
                                                               dates[i],"_",basename(assay_slot),".csv"),
                                                 row.names = 1,stringsAsFactors=F)
                         if(basename(assay_slot) == "SCT_scale.data") {
                                 dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC/log2(exp(1))
                                 dataset[[i]]$avg_logFC = tanh(dataset[[i]]$avg_logFC)
+                        }
+                        if(basename(assay_slot) == "RNA_data_MNN"){
+                                dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC*100
                         }
                         dataset[[i]]$cluster = cluster[i]
                         dataset[[i]]$gene = rownames(dataset[[i]])

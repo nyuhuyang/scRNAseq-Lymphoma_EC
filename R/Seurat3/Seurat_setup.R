@@ -88,18 +88,10 @@ object@assays$RNA@data = as(data_combat, "sparseMatrix")
 remove(data,data_combat,batch.effect);GC()
 
 #======1.4 mnncorrect =========================
-# https://support.bioconductor.org/p/106010/
+# run script fastMNN.R
+(load(file = "data/sce_10_20191002.Rda"))
 (load(file="data/Lymphoma_EC_10_20190922.Rda"))
-Seurat_list <- SplitObject(object, split.by = "orig.ident")
-Seurat_list <- lapply(Seurat_list, function(x) x@assays$RNA@data)
-system.time(out <- fastMNN(Seurat_list[[1]],Seurat_list[[2]],
-                           Seurat_list[[3]],Seurat_list[[4]],
-                           Seurat_list[[5]],Seurat_list[[6]],
-                           Seurat_list[[7]],Seurat_list[[8]],
-                           Seurat_list[[9]],Seurat_list[[10]]))
-object@assays$RNA@data = out
-save(object, file = "data/Lymphoma_EC_10_20191002.Rda")
-
+object@assays$RNA@data = as(sce@assays$data$reconstructed, "sparseMatrix")
 ######################################
 
 # After removing unwanted cells from the dataset, the next step is to normalize the data.
@@ -140,9 +132,9 @@ object@assays$RNA@scale.data = matrix(0,0,0)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
-p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+p0 <- TSNEPlot.1(object, group.by="orig.ident",split.by = "conditions",pt.size = 1,label = F,legend.size = 15,
                  do.return = T,no.legend = F,label.size = 4, repel = T, title = "Original")
-p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,legend.size = 15,
+p1 <- UMAPPlot.1(object, group.by="orig.ident",split.by = "tests",pt.size = 1,label = F,legend.size = 15,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
 
 #======1.5 Performing SCTransform and integration =========================
@@ -184,8 +176,8 @@ plot_grid(p1+ggtitle("Clustering without integration")+
           p3+ggtitle("Clustering with integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
-
-TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+Idents(object) = "cell.type"
+TSNEPlot.1(object = object, label = T,label.repel = T, #group.by = "integrated_snn_res.0.6", 
          do.return = F, no.legend = F, title = "tSNE plot for all clusters",
          pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 

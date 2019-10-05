@@ -10,6 +10,7 @@ library(tidyr)
 library(kableExtra)
 library(gplots)
 library(MAST)
+library(Matrix)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -28,6 +29,12 @@ print(paste0("slurm_arrayid=",args))
 
 # 3.1.1 load data
 (load(file="data/Lymphoma_EC_10_20190922.Rda"))
+(load(file = "data/sce_10_20191002.Rda"))
+reconstructed = as.matrix(sce@assays$data$reconstructed)
+rownames(reconstructed) = rownames(sce)
+RNA_data = as(reconstructed, "sparseMatrix")*log(2)
+RNA_data = RNA_data[rownames(object),colnames(object)]
+object@assays$RNA@data = RNA_data
 Idents(object) <-  "Doublets"
 object %<>% subset(idents = "Singlet")
 
@@ -53,25 +60,25 @@ object %<>% RenameIdents("0" = "T cells",
 object@meta.data$cell.type = as.character(Idents(object))
 # subset cell types
 object@meta.data$cell.type_conditions = paste0(object@meta.data$cell.type,"_",
-                                         object@meta.data$conditions)
+                                               object@meta.data$conditions)
 Idents(object) = "cell.type_conditions"
-object %<>% subset(idents = c("T cells_T-ALL","T cells_EC+T-ALL"))
-object %<>% RenameIdents("T cells_T-ALL" = "T-ALL",
-                         "T cells_EC+T-ALL" = "T-ALL+EC")
+object %<>% subset(idents = c("Endothelial cells_EC","Endothelial cells_EC+T-ALL"))
+object %<>% RenameIdents("Endothelial cells_EC" = "EC",
+                         "Endothelial cells_EC+T-ALL" = "TEC")
 object@meta.data$cell.type_conditions = as.character(Idents(object))
 Idents(object) = "cell.type_conditions"
-object %<>% sortIdent
+object %<>% sortIdent()
 table(Idents(object))
-assay = c("RNA","SCT","SCT");slot = c("data","data","scale.data")
-for(i in seq_along(assay)){
-        T_cells_markers <- FindMarkers.UMI(object, assay = assay[i],slot = slot[i],
-                                           ident.1 = "T-ALL+EC", ident.2 = "T-ALL",
-                                           test.use = "MAST",
-                                           min.pct = -Inf,
-                                           min.cells.feature = -Inf, min.cells.group = -Inf,
-                                           only.pos = F, # don't change it!
-                                           logfc.threshold = -Inf)
-        write.csv(T_cells_markers,paste0(path,"TALL_markers_",date,"_",assay[i],"_",slot[i],".csv"))
+assay = c("RNA","SCT","SCT"); slot = c("data","data","scale.data")
+for(i in 1){
+        EC_markers <- FindMarkers.UMI(object, assay = assay[i],slot = slot[i],
+                                      ident.1 = "TEC", ident.2 = "EC",
+                                      test.use = "MAST",
+                                      min.pct = -Inf,
+                                      min.cells.feature = -Inf, 
+                                      min.cells.group = -Inf,
+                                      only.pos = F, # don't change it!
+                                      logfc.threshold = -Inf)
+        write.csv(EC_markers,paste0(path,"EC_markers_",date,"_",assay[i],"_",slot[i],".csv"))
         svMisc::progress(i/length(assay)*100)
-        }
-
+}

@@ -36,8 +36,8 @@ names(allpathways) = gsub("_"," ",names(allpathways))
 
 # 3.1.2 read DE files and generate GSEA
 
-assay = c("RNA","SCT","SCT")
-slot = c("data","data","scale.data")
+assay = c("RNA","RNA","SCT","SCT")
+slot = c("data","data_MNN","data","scale.data")
 dates <- c("2018-10-18","2018-12-30")
 cluster <- c("EC+RO2", "EC+3119")
 cell.type = c("EC","TALL")
@@ -48,12 +48,16 @@ for(d in seq_along(assay)){
                 dataset <- list()
                 for(i in seq_along(dates)){
                         
-                        dataset[[i]] = read.csv(file = paste0(assay_slot,cell.type[k],"_markers_",
+                        dataset[[i]] = read.csv(file = paste0("Yang/6. Differential analysis/",
+                                                              basename(assay_slot),"/", cell.type[k],"_markers_",
                                                               dates[i],"_",basename(assay_slot),".csv"),
                                                 row.names = 1,stringsAsFactors=F)
                         if(basename(assay_slot) == "SCT_scale.data") {
                                 dataset[[i]]$avg_logFC = tanh(dataset[[i]]$avg_logFC)
-                                dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC*4*log2(exp(1))
+                                dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC*10
+                        }
+                        if(basename(assay_slot) == "RNA_data_MNN"){
+                                dataset[[i]]$avg_logFC = dataset[[i]]$avg_logFC*200
                         }
                         dataset[[i]]$cluster = cluster[i]
                         dataset[[i]]$gene = rownames(dataset[[i]])
@@ -68,25 +72,27 @@ for(d in seq_along(assay)){
                                                pathway.name = "Hallmark",rotate.x.text = T,
                                                font.xtickslab=14, font.main=18,font.ytickslab = 10,
                                                font.legend = list(size = 14),font.label = list(size = 14),
-                                               width=9, height=7,hjust=0.8,
+                                               width=6, height=7,hjust=0.8,
                                                save_path = paste(paste0(assay_slot,"Dotplot"),cell.type[k],"hallmark",
                                                                   avg_logFC,padj,pval,
                                                                  basename(assay_slot),".jpeg",sep = "_"))
                 write.csv(hallmark_fgesa,paste0(assay_slot,cell.type[k],"_hallmark_fgesa",basename(assay_slot),".csv"))
                 
-                allpathways_fgesa <- FgseaDotPlot(stats=res, pathways=allpathways, nperm=1000,
+                tryCatch(
+                        {FgseaDotPlot(stats=res, pathways=allpathways, nperm=1000,
                                                   order.by = c("EC+RO2","NES"),decreasing = F,
                                                   size = "-log10(pval)", fill = "NES",do.return = T,
                                                   sample = paste("Educated",cell.type[k]), 
                                                   rotate.x.text = T, pathway.name = "Hallmark, biocarta,and KEGG",
                                                   font.xtickslab=14, font.main=12,font.ytickslab = 8,
                                                   font.legend = list(size = 12),font.label = list(size = 12),
-                                                  width=8, height=7,hjust=0.67,
+                                                  width=6, height=7,hjust=0.67,
                                                   save_path = paste(paste0(assay_slot,"Dotplot"),cell.type[k],"allpathways",
                                                                     avg_logFC,padj,pval,
                                                                     basename(assay_slot),".jpeg",sep = "_"))
-                write.csv(allpathways_fgesa,paste0(assay_slot,cell.type[k],"allpathways_fgesa",basename(assay_slot),".csv"))
-                
+                        },
+                        error = function(e) e
+                )
         }
         svMisc::progress(d/length(assay)*100)
 }
