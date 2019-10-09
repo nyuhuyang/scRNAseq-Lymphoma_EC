@@ -36,11 +36,19 @@ names(allpathways) = gsub("_"," ",names(allpathways))
 
 # 3.1.2 read DE files and generate GSEA
 
+# test normalization methods
 assay = c("RNA","RNA","SCT","SCT")
 slot = c("data","data_MNN","data","scale.data")
 dates <- c("2018-10-18","2018-12-30")
 cluster <- c("EC+RO2", "EC+3119")
 cell.type = c("EC","TALL")
+# test EC only
+assay = "SCT"
+slot = "data"
+cell.type = "EC"
+cluster <- c("RO2-plus-EC-2","RO2-plus-EC","EC2","EC+3119")
+(dates <- c(paste("Endothelial cells",cluster[1:3],"vs_EC",sep = "_"),"2018-12-30"))
+
 for(d in seq_along(assay)){
         assay_slot = paste0(path,assay[d],"_",slot[d],"/")
         if(!dir.exists(assay_slot)) dir.create(assay_slot, recursive = T)
@@ -66,7 +74,7 @@ for(d in seq_along(assay)){
                 res = res[order(res["p_val_adj"]),]
                 avg_logFC = 0; padj = 1; pval = 0.05
                 hallmark_fgesa <- FgseaDotPlot(stats=res, pathways=hallmark, nperm=1000,
-                                               order.by = c("EC+RO2","NES"),decreasing = F,
+                                               order.by = c(cluster[1],"NES"),decreasing = F,
                                                size = "-log10(pval)", fill = "NES",do.return = T,
                                                sample = paste0("Educated_",cell.type[k]), 
                                                pathway.name = "Hallmark",rotate.x.text = T,
@@ -80,7 +88,7 @@ for(d in seq_along(assay)){
                 
                 tryCatch(
                         {FgseaDotPlot(stats=res, pathways=allpathways, nperm=1000,
-                                                  order.by = c("EC+RO2","NES"),decreasing = F,
+                                                  order.by = c(cluster[1],"NES"),decreasing = F,
                                                   size = "-log10(pval)", fill = "NES",do.return = T,
                                                   sample = paste("Educated",cell.type[k]), 
                                                   rotate.x.text = T, pathway.name = "Hallmark, biocarta,and KEGG",

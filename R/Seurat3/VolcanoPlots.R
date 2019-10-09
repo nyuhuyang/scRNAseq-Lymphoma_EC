@@ -11,12 +11,19 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
-# set group
+# test normalization methods
 assay = c("RNA","RNA","SCT","SCT")
 slot = c("data","data_MNN","data","scale.data")
 dates <- c("2018-10-18","2018-12-30")
 cluster <- c("EC+RO2", "EC+3119")
 cell.type = c("EC","TALL")
+# test EC only
+assay = "SCT"
+slot = "data"
+cell.type = "EC"
+cluster <- c("RO2-plus-EC-2","RO2-plus-EC","EC2")
+(dates <- paste("Endothelial cells",cluster,"vs_EC",sep = "_"))
+
 # read data and generate VolcanoPlots
 for(d in seq_along(assay)){
         assay_slot = paste0(path,assay[d],"_",slot[d],"/")
