@@ -29,7 +29,8 @@ EC <- FindVariableFeatures(object = EC, selection.method = "vst",
                            num.bin = 20,
                            mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
 
-TEC_cor = cor(df_TEC[VariableFeatures(EC),],method = "spearman")
+df_TEC = EC_exp$integrated
+TEC_cor = cor(df_TEC,method = "spearman")
 TEC_cor = reshape2::melt(TEC_cor)
 colnames(TEC_cor)[3] = "correlation"
 
@@ -38,7 +39,9 @@ ggplot(TEC_cor, aes(x = Var1, y = Var2, fill = correlation)) + geom_raster()+
         geom_text(aes(label = round(correlation, 3)))+
         scale_fill_gradientn(colors = ggsci::pal_gsea()(12)[5:12])+
         theme(axis.title.x=element_blank(),
-              axis.title.y=element_blank())
+              axis.title.y=element_blank(),
+              axis.text.x = element_text(angle = 45, vjust=1,
+                                         size =12, hjust=1))
 dev.off()
 
 # hcluster
